@@ -1,15 +1,14 @@
-require 'matrix'
-
 class HMM
   attr_reader :transition, :emission, :initial_probs
 
   def initialize(trans, emiss, init)
-    @transition = Matrix[*trans]
-    @emission = Matrix[*emiss]
+    @transition = trans
+    @emission = emiss
     @initial_probs = init
   end
 
-  def forward_backward(obs_num, observations)
+  # forward_backward : List Observation -> ObsNumber -> State -> Probability
+  def forward_backward(observations)
     # p(x_k|o_1:t) = p(x_k,o_1:t) / p(o_1:t)
     #              = p(x_k, o_1:k, o_k+1:t) / p(o_1:t)
     #              = p(x_k, o_1:k)p(o_k+1:t|x_k,o_1:k) / p(o_1:t)
@@ -20,11 +19,13 @@ class HMM
 
     denom = forward[observations.length - 1].inject :+
 
-    (0...num_states).map { |state| forward[obs_num][state] * backward[obs_num][state] / denom}
+    (0...observations.length).map { |obs_num|
+      (0...num_states).map { |state| forward[obs_num][state] * backward[obs_num][state] / denom}
+    }
   end
 
   def compute_backward(observations)
-    # b[k] = p(x_k+1:t|x_k)
+    # b[k] = p(o_k+1:t|x_k)
     b = (0...observations.length).map { Array.new num_states }
 
     b[observations.length - 1] = [1]*num_states
@@ -32,11 +33,11 @@ class HMM
     # b[k] = p(o_k+1:t | x_k)
     #      = Sum p(x_k+1, o_k+1, o_k+2:t | x_k)
     #      = Sum p(o_k+1|x_k+1) * p(x_k+1|x_k) * p(x_k+2:t|x_k+1)
-    #      = Sum p(o_k+1|x_k+1)*p(x_k+1|x_k)*b[k+1][x_k+1]
+    #      = Sum p(o_k+1|x_k+1) * p(x_k+1|x_k) * b[k+1][x_k+1]
     (observations.length - 2).downto(0) do |k|
       (0...num_states).each do |state|
         b[k][state] = b[k+1].map.with_index do |b, i|
-          b * transition[state,i] * emission[i,observations[k]]
+          b * transition[state][i] * emission[i][observations[k+1]]
         end.inject(:+)
       end
     end
@@ -50,7 +51,7 @@ class HMM
 
     # a[0] = p(x_0,o_0) = p(o_0|x_0)*p(x_0)
     a[0] =
-      (0...num_states).map { |state| emission[state, observations[0]] * initial_probs[state] }
+      (0...num_states).map { |state| emission[state][observations[0]] * initial_probs[state] }
 
     # a[k] = p(x_k,o_1:k)
     #      = Sum p(x_k, x_k-1, o_1:k-1, o_k)
@@ -58,8 +59,8 @@ class HMM
     #      = Sum p(o_k|x_k) * p(x_k|x_k-1) * a[k-1][x_k-1]
     (1...observations.length).each do |k|
       (0...num_states).each do |state|
-        a[k][state] = emission[state,observations[k]] *
-                      a[k-1].map.with_index { |a, i| a * transition[i,state] }.inject(:+)
+        a[k][state] = emission[state][observations[k]] *
+                      a[k-1].map.with_index { |a, i| a * transition[i][state] }.inject(:+)
       end
     end
 
@@ -73,10 +74,12 @@ end
 
 require 'pry'
 
-transition_rows = [[0.7, 0.3],
-                   [0.3, 0.7]]
-emission_rows = [[0.9, 0.1],
-                 [0.2, 0.8]]
+transition_rows = [[0.99, 0.01],
+                   [0.1, 0.9]]
+
+p = 1/6.to_f
+emission_rows = [[p, p, p, p, p, p],
+                 [p/5, p/5, p/5, p/5, p/5, 5*p]]
 init = [0.5, 0.5]
 hmm = HMM.new(transition_rows, emission_rows, init)
 binding.pry
