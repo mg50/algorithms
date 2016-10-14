@@ -3,7 +3,8 @@ class BaumWelch
   end
 
   def baum_welch_step(trans, emiss, init, observation_sequences)
-    fb_results = observation_sequences.map { |os| HMM.new(trans, emiss, init).forward_backward os }
+    hmm = HMM.new(trans, emiss, init).forward_backward
+    fb_results = observation_sequences.map { |os| hmm.forward_backward os }
 
     {updated_initial_probs: updated_initial_probs(init, fb_results),
      updated_transition: updated_transition(observation_sequences, fb_results),
@@ -35,7 +36,7 @@ class BaumWelch
       (0...num_states).each do |j|
         observation_sequences.each_with_index do |seq, seq_index|
           seq[0..-2].each_with_index do |obs, obs_index|
-            # p(z_t = i, z_t+1 = j | o_1:k) = p(z_t+1=k|z_t=i) * p(z_t=i | o_1:k)
+            # p(z_t = i, z_t+1 = j | o_1:k) = p(z_t+1=j|z_t=i) * p(z_t=i | o_1:k)
             numerator[i][j] += transition[i][j] * fb_results[seq_index][obs_index][i]
           end
         end
