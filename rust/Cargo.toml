@@ -1,0 +1,6 @@
+[package]
+name = "binary_search_tree"
+version = "0.1.0"
+authors = ["markgrant <mark.alan.grant@gmail.com>"]
+
+[dependencies]
