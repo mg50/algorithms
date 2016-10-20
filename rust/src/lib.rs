@@ -1,5 +1,6 @@
 use std::mem;
 mod btree;
+mod rbtree;
 
 struct Tree<K, V> {
     root: Option<Node<K, V>>
