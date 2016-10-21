@@ -2,7 +2,8 @@ use std::cmp;
 use std::mem;
 
 struct RBTree<K, V> {
-    root: Option<Node<K, V>>
+    root: Option<Node<K, V>>,
+    length: u32
 }
 
 struct Node<K, V> {
@@ -14,7 +15,8 @@ struct Node<K, V> {
 }
 
 enum InsertionResult {
-    Success,
+    SuccessInsert,
+    SuccessUpdate,
     RepaintedRed,
     RotateMe(Dir),
     RedInvariantBroken
@@ -28,7 +30,7 @@ enum Dir { Left, Right }
 
 impl <K: Ord, V> RBTree<K, V> {
     fn new() -> RBTree<K, V> {
-        RBTree{root: None}
+        RBTree{root: None, length: 0}
     }
 
     fn find(&self, key: K) -> Option<&V> {
@@ -39,22 +41,24 @@ impl <K: Ord, V> RBTree<K, V> {
     }
 
     fn insert(&mut self, key: K, value: V) {
-        let rotation_result = match self.root {
+        let (rotation_result, length_delta) = match self.root {
             Some(ref mut root) => {
                 match root.insert(key, value) {
-                    InsertionResult::RotateMe(dir) => Some(dir),
-                    _ => None
+                    InsertionResult::RotateMe(dir) => (Some(dir), 1),
+                    InsertionResult::SuccessUpdate => (None, 0),
+                    _ => (None, 1)
                 }
             },
             None => {
                 let node = Node::new(key, value, Color::Black);
                 self.root = Some(node);
-                None
+                (None, 1)
             }
         };
 
         rotation_result.map(|dir| self.rotate_root(dir));
         self.root.as_mut().map(|root| root.color = Color::Black);
+        self.length += length_delta;
     }
 
     fn rotate_root(&mut self, dir: Dir) {
@@ -67,6 +71,10 @@ impl <K: Ord, V> RBTree<K, V> {
             },
             None => {}
         }
+    }
+
+    fn len(&self) -> u32 {
+        self.length
     }
 }
 
@@ -89,7 +97,7 @@ impl <K: Ord, V> Node<K, V> {
     fn insert(&mut self, key: K, value: V) -> InsertionResult {
         if key == self.key {
             self.value = value;
-            return InsertionResult::Success
+            return InsertionResult::SuccessUpdate
         }
 
         let dir = if key < self.key { Dir::Left } else { Dir::Right };
@@ -101,7 +109,7 @@ impl <K: Ord, V> Node<K, V> {
                     let mut node = Node::new(key, value, Color::Red);
                     mem::swap(child, &mut Some(Box::new(node)));
 
-                    return if self.color == Color::Black { InsertionResult::Success }
+                    return if self.color == Color::Black { InsertionResult::SuccessInsert }
                     else { InsertionResult::RedInvariantBroken }
                 },
 
@@ -127,10 +135,10 @@ impl <K: Ord, V> Node<K, V> {
             InsertionResult::RotateMe(dir_to_rotate) =>
                 self.handle_rotation_case(dir_inserted, dir_to_rotate),
             InsertionResult::RepaintedRed => {
-                if self.color == Color::Black { InsertionResult::Success }
+                if self.color == Color::Black { InsertionResult::SuccessInsert }
                 else { InsertionResult::RedInvariantBroken }
             },
-            InsertionResult::Success => InsertionResult::Success
+            result => result
         }
     }
 
@@ -152,7 +160,7 @@ impl <K: Ord, V> Node<K, V> {
 
         if dir_inserted == Dir::Left { self.left = result }
         else { self.right = result };
-        InsertionResult::Success
+        InsertionResult::SuccessInsert
     }
 
     fn normalize_child(&mut self, dir: Dir) {
@@ -241,6 +249,10 @@ mod tests {
         for i in 0..num_nodes {
             assert_eq!(i+1, *tree.find(i).unwrap());
         }
+
+        assert_eq!(num_nodes, tree.len());
+        tree.insert(0, 5);
+        assert_eq!(num_nodes, tree.len());
 
         let root = &tree.root.unwrap();
         check_invariant(root);
