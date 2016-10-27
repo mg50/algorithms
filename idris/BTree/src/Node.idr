@@ -63,7 +63,7 @@ mutual
   insertIntoChild {n} {idx} entry idxLteN (MkNode minLteOrder entries children) =
     let MkBoundedVect entriesVect epf1 epf2 = entries
         MkBoundedVect childrenVect cpf1 cpf2 = children
-        (complement ** lemma) = U.lteAdditionLemma idxLteN
+        (complement ** lemma) = L.lemma8 idxLteN
         (left, (childLength ** child)::right) = U.vsplit (U.retypeVect lemma childrenVect)
     in case insert entry child of
       -- entry inserted into child without split

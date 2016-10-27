@@ -43,6 +43,6 @@ insert {order} k v (MkBTree oneLteOrder (RootLeaf node)) =
 
 insert {order} k v (MkBTree oneLteOrder (RootInternal node)) =
   case N.insert (MkEntry k v) node of
-  (_ ** Success node') => MkBTree oneLteOrder (RootInternal node')
-  (order ** Split left mid right) =>
-    handleSplit oneLteOrder oneLteOrder left mid right
+    (_ ** Success node') => MkBTree oneLteOrder (RootInternal node')
+    (order ** Split left mid right) =>
+      handleSplit oneLteOrder oneLteOrder left mid right

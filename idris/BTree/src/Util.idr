@@ -19,30 +19,17 @@ vsplit {n = (S k)} (x :: xs) =
   let (left, right) = vsplit xs
   in (x::left, right)
 
-vsplitOrd : Ord a => a -> Vect k a -> (n : Nat ** m : Nat ** (Vect n a, Vect m a, n + m = k))
-vsplitOrd {k = Z} x [] = (0 ** 0 ** ([], [], Refl))
-vsplitOrd {k = (S j)} x (y :: xs) =
-  if x <= y then
-    (0 ** S j ** ([], y :: xs, Refl))
-  else
-    let (n ** m ** (left, right, pf)) = vsplitOrd x xs
-    in (S n ** m ** (y :: left, right, cong pf))
-
-lemma : (n : Nat) -> S (2*n) = n + S n
-lemma n =
-  let a = the (2*n = n + n) $ rewrite (plusZeroRightNeutral n)
-                              in Refl
-      b = cong {f=S} a
-      c = plusSuccRightSucc n n
-  in trans b c
-
 retypeVect : n = m -> Vect n a -> Vect m a
-retypeVect {n} = replace {P=\k => Vect k a}
+retypeVect = replace {P=\k => Vect k a}
 
 trisect : Vect (S (2*n)) a -> (Vect n a, a, Vect n a)
-trisect {n} xs =
-  let (left, x::right) = vsplit (retypeVect (lemma n) xs)
-  in (left, x, right)
+trisect {n} xs = let (left, x::right) = vsplit (retypeVect (lemma n) xs)
+                 in (left, x, right)
+  where
+    lemma : (n : Nat) -> S (2*n) = n + S n
+    lemma n = rewrite plusZeroRightNeutral n in
+              rewrite plusSuccRightSucc n n in
+              Refl
 
 -- make this tail-recursive
 findInsertionLoc : Ord a =>
@@ -73,14 +60,6 @@ vectInsert (S k) x (y :: xs) = y :: vectInsert k x xs
 vectInsertOrd : Ord a => a -> Vect n a -> Vect (S n) a
 vectInsertOrd x [] = [x]
 vectInsertOrd x (y::xs) = if x < y then
-                             x::y::xs
+                            x::y::xs
                           else
                             y :: vectInsertOrd x xs
--- vectInsert Z x xs = x :: xs
--- vectInsert (S k) x (y :: xs) = y :: vectInsert k x xs
-
-lteAdditionLemma : {n, m : Nat} -> LTE n m -> (k : Nat ** S m = n + S k)
-lteAdditionLemma {n=Z} {m} lte = (m ** Refl)
-lteAdditionLemma {n=(S n)} {m=(S m)} (LTESucc lte) =
-  let (k ** eq) = lteAdditionLemma {n} {m} lte
-  in (k ** cong eq)

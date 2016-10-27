@@ -49,3 +49,9 @@ lemma7 : (n : Nat) -> LTE 1 n -> LTE 2 ((2*n) + 1)
 lemma7 n pf = let result = LTESucc (lemma6 n pf)
               in rewrite plusCommutative (n + (n + 0)) 1 in
               result
+
+lemma8 : {n, m : Nat} -> LTE n m -> (k : Nat ** S m = n + S k)
+lemma8 {n=Z} {m} lte = (m ** Refl)
+lemma8 {n=(S n)} {m=(S m)} (LTESucc lte) =
+  let (k ** eq) = lemma8 {n} {m} lte
+  in (k ** cong eq)
