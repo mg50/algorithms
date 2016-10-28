@@ -23,9 +23,9 @@ Entries : Nat -> Nat -> Nat -> Type -> Type -> Type
 Entries n min order k v = BoundedVect n min (2*order) (Entry k v)
 
 mutual
-  Children : Nat -> Nat -> Nat -> Nat -> Type -> Type -> Type
-  Children n min order height k v =
-    BoundedVect (S n) (S min) (2*order + 1) (m : Nat ** Node m order order height k v)
+  Children : Nat -> Nat -> Nat -> Type -> Type -> Type
+  Children n order height k v =
+    Vect (S n) (m : Nat ** Node m order order height k v)
 
   data Node : Nat -> Nat -> Nat -> Nat -> Type -> Type -> Type where
     MkLeaf : LTE min order ->
@@ -33,7 +33,7 @@ mutual
              Node n min order 0 k v
     MkNode : LTE min order ->
              Entries n min order k v ->
-             Children n min order height k v ->
+             Children n order height k v ->
              Node n min order (S height) k v
 
 data InsertionResult : Nat -> Nat -> Nat -> Nat -> Type -> Type -> Type where
@@ -77,7 +77,7 @@ mutual
 
   showNode : (Show k, Show v) => (n : Nat) -> Node m min order height k v -> String
   showNode n (MkLeaf _ entries) = spaces n ++ showEntries entries
-  showNode n (MkNode _ entries (MkBoundedVect children _ _)) =
+  showNode n (MkNode _ entries children) =
     let firstLine = spaces n ++ showEntries entries
         otherLines = map (showNodeHelper (2+n)) children
     in Strings.unlines (firstLine :: toList otherLines)

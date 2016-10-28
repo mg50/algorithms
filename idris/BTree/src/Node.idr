@@ -34,7 +34,7 @@ mutual
 
   find : Ord k => k -> Node n min order height k v -> Maybe v
   find k (MkLeaf _ (MkBoundedVect xs _ _)) = findInEntries k xs
-  find k (MkNode _ (MkBoundedVect entries _ _) (MkBoundedVect children _ _)) =
+  find k (MkNode _ (MkBoundedVect entries _ _) children) =
     findHelper k (U.interleave entries children)
 
 insertIntoLeaf : Ord k =>
@@ -62,48 +62,39 @@ mutual
                     (n' : Nat ** InsertionResult n' min order (S height) k v)
   insertIntoChild {n} {idx} entry idxLteN (MkNode minLteOrder entries children) =
     let MkBoundedVect entriesVect epf1 epf2 = entries
-        MkBoundedVect childrenVect cpf1 cpf2 = children
         (complement ** lemma) = L.lemma8 idxLteN
-        (left, (childLength ** child)::right) = U.vsplit (U.retypeVect lemma childrenVect)
+        (left, (childLength ** child)::right) = U.vsplit (U.retypeVect lemma children)
     in case insert entry child of
       -- entry inserted into child without split
       (newLength ** Success child') =>
         let newChildren = U.retypeVect (sym lemma) (left ++ (newLength ** child')::right)
-        in (n ** Success $ MkNode minLteOrder entries (MkBoundedVect newChildren cpf1 cpf2))
+        in (n ** Success $ MkNode minLteOrder entries newChildren)
 
       -- insertion into the child caused overflow
       (_ ** Split l mid r) =>
         let newEntryVect = U.vectInsertOrd mid entriesVect
-            newLeftChild = (order ** l)
-            newRightChild = (order ** r)
-            newChildrenVect = left ++ newLeftChild :: newRightChild :: right
-            newChildrenVect' = U.retypeVect (L.lemma1 lemma) newChildrenVect
+            newChildren = U.retypeVect (L.lemma1 lemma) $
+                            left ++ (order ** l) :: (order ** r) :: right
         in case decEq n (2*order) of
           -- we have room for the new entry/children here
           No contra =>
             let lteMaxProof1 = L.lemma2 n (2*order) epf2 contra
                 newEntries = MkBoundedVect newEntryVect (lteSuccRight epf1) lteMaxProof1
-
-                lteMaxProof2 = L.lemma2 (S n) (2*order + 1) cpf2 (L.lemma3 contra)
-                newChildren = MkBoundedVect newChildrenVect' (lteSuccRight cpf1) lteMaxProof2
             in (S n ** Success $ MkNode minLteOrder newEntries newChildren)
 
           -- we're out of room and need to split this node as well
           Yes nEq2Order =>
             let (leftEntries, midEntry, rightEntries) =
                   U.trisect $ U.retypeVect (cong nEq2Order) newEntryVect
-                vect' = U.retypeVect (L.lemma4 order) $
-                        U.retypeVect (cong nEq2Order) newChildrenVect'
-                (leftChildren, rightChildren) = U.vsplit vect'
+                vect = U.retypeVect (L.lemma4 order) $
+                         U.retypeVect (cong nEq2Order) newChildren
+                (leftChildren, rightChildren) = U.vsplit vect
 
-                SminLteSorder = LTESucc minLteOrder
                 leftEntries' = MkBoundedVect leftEntries minLteOrder (lteAddRight order)
-                leftChildren' = MkBoundedVect leftChildren SminLteSorder (L.lemma5 order)
-                leftNode = MkNode minLteOrder leftEntries' leftChildren'
+                leftNode = MkNode minLteOrder leftEntries' leftChildren
 
                 rightEntries' = MkBoundedVect rightEntries minLteOrder (lteAddRight order)
-                rightChildren' = MkBoundedVect rightChildren SminLteSorder (L.lemma5 order)
-                rightNode = MkNode minLteOrder rightEntries' rightChildren'
+                rightNode = MkNode minLteOrder rightEntries' rightChildren
             in (order ** Split leftNode midEntry rightNode)
 
 
@@ -126,13 +117,10 @@ mutual
   insert entry leaf@(MkLeaf _ _) = insertIntoLeaf entry leaf
   insert entry node@(MkNode _ _ _) = insertIntoNode entry node
 
-adjustMin : LTE min order -> Node order min order height k v -> Node order order order height k v
-adjustMin {order} minLteOrder (MkLeaf _ (MkBoundedVect entries zLteN nLteMax)) =
+adjustMin : Node order min order height k v -> Node order order order height k v
+adjustMin {order} (MkLeaf minLteOrder (MkBoundedVect entries zLteN nLteMax)) =
   MkLeaf lteRefl (MkBoundedVect entries lteRefl (lteAddRight order))
-adjustMin {order} lteMinOrder (MkNode _ entries children) =
+adjustMin {order} (MkNode minLteOrder entries children) =
   let MkBoundedVect entriesVect _ _ = entries
-      MkBoundedVect childrenVect _ _ = children
-
       entries' = MkBoundedVect entriesVect lteRefl (lteAddRight order)
-      children' = MkBoundedVect childrenVect lteRefl (L.lemma5 order)
-  in MkNode lteRefl entries' children'
+  in MkNode lteRefl entries' children
